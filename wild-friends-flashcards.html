@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wild Friends Flashcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-top:#FFE066;
+    --bg-bottom:#48C9E5;
+    --card-stock:#FFFDF6;
+    --ink:#2B2140;
+    --ink-soft:#5B5170;
+    --accent-coral:#FF6B6B;
+    --accent-grass:#43B36B;
+    --accent-sun:#FFB100;
+    --accent-sky:#2F9BD6;
+    --radius-lg:28px;
+    --radius-md:18px;
+    --shadow-card:0 18px 40px rgba(43,33,64,0.28);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100dvh;
+    font-family:'Quicksand',sans-serif;
+    color:var(--ink);
+    background:linear-gradient(180deg,var(--bg-top) 0%,var(--bg-bottom) 100%);
+    overflow-x:hidden;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    position:relative;
+  }
+
+  /* ambient drifting clouds */
+  .sky-deco{
+    position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0;
+  }
+  .cloud{
+    position:absolute; opacity:0.55; filter:blur(0.5px);
+    font-size:3rem; animation:drift linear infinite;
+  }
+  @keyframes drift{
+    from{ transform:translateX(-10vw); }
+    to{ transform:translateX(110vw); }
+  }
+
+  .app{
+    position:relative; z-index:1;
+    width:100%; max-width:520px;
+    padding:1.1rem 1.1rem 2rem;
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100dvh;
+  }
+
+  header{
+    width:100%; text-align:center; margin-bottom:0.6rem;
+    animation:dropIn 0.6s ease both;
+  }
+  @keyframes dropIn{
+    from{ opacity:0; transform:translateY(-16px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  h1{
+    font-family:'Baloo 2',sans-serif; font-weight:800;
+    font-size:clamp(1.6rem,6vw,2.3rem);
+    margin:0.2rem 0 0.1rem;
+    color:var(--ink);
+    text-shadow:0 3px 0 rgba(255,255,255,0.5);
+  }
+  .title-emoji{ font-size:0.9em; }
+
+  .mascot-bubble{
+    display:inline-flex; align-items:center; gap:0.5rem;
+    background:rgba(255,255,255,0.75);
+    border-radius:999px;
+    padding:0.45rem 1rem;
+    font-weight:600; font-size:0.92rem; color:var(--ink-soft);
+    box-shadow:0 4px 14px rgba(43,33,64,0.12);
+  }
+  .mascot-bubble span.paw{
+    display:inline-block; animation:pawBounce 1.6s ease-in-out infinite;
+  }
+  @keyframes pawBounce{
+    0%,100%{ transform:translateY(0) rotate(0deg); }
+    50%{ transform:translateY(-4px) rotate(-8deg); }
+  }
+
+  /* mode toggle */
+  .mode-toggle{
+    position:relative;
+    display:flex;
+    background:rgba(255,255,255,0.55);
+    border-radius:999px;
+    padding:5px;
+    margin:1rem 0 0.4rem;
+    width:100%;
+    max-width:280px;
+    box-shadow:inset 0 2px 6px rgba(43,33,64,0.12);
+  }
+  .mode-toggle button{
+    flex:1; position:relative; z-index:1;
+    border:none; background:transparent;
+    font-family:'Baloo 2',sans-serif; font-weight:700; font-size:1rem;
+    color:var(--ink-soft);
+    padding:0.6rem 0; border-radius:999px; cursor:pointer;
+    transition:color 0.25s ease;
+  }
+  .mode-toggle button.active{ color:#fff; }
+  .mode-toggle .slider{
+    position:absolute; top:5px; bottom:5px; left:5px;
+    width:calc(50% - 5px);
+    background:linear-gradient(135deg,var(--accent-sky),var(--accent-grass));
+    border-radius:999px;
+    transition:transform 0.3s cubic-bezier(.5,1.6,.5,1);
+    box-shadow:0 4px 10px rgba(43,33,64,0.25);
+  }
+  .mode-toggle button.quiz-active-slider ~ .slider,
+  .mode-toggle[data-mode="quiz"] .slider{ transform:translateX(100%); }
+
+  /* stage */
+  .stage{
+    width:100%;
+    display:flex; flex-direction:column; align-items:center;
+    margin-top:0.6rem;
+  }
+
+  .card-scene{
+    width:100%; max-width:340px; aspect-ratio:3/4;
+    perspective:1400px;
+    margin:0.3rem auto 0.8rem;
+  }
+  .card{
+    position:relative; width:100%; height:100%;
+    transform-style:preserve-3d;
+    transition:transform 0.6s cubic-bezier(.4,.2,.2,1);
+    cursor:pointer;
+    border:none; background:none; padding:0; font:inherit;
+    display:block;
+  }
+  .card:focus-visible{ outline:3px solid var(--accent-sky); outline-offset:6px; border-radius:var(--radius-lg); }
+  .card.flipped{ transform:rotateY(180deg); }
+  .card.idle-invite{ animation:wiggle 3.2s ease-in-out infinite; }
+  @keyframes wiggle{
+    0%,88%,100%{ transform:rotate(0deg); }
+    90%{ transform:rotate(-2.5deg); }
+    93%{ transform:rotate(2.5deg); }
+    96%{ transform:rotate(-1.5deg); }
+  }
+  .card.flipped.idle-invite{ animation:none; }
+
+  .face{
+    position:absolute; inset:0;
+    border-radius:var(--radius-lg);
+    backface-visibility:hidden;
+    box-shadow:var(--shadow-card);
+    overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border:6px solid rgba(255,255,255,0.9);
+  }
+  .face.cover{
+    background:linear-gradient(160deg,#8A7FBE,#4E4577);
+  }
+  .face.reveal{
+    transform:rotateY(180deg);
+  }
+
+  /* ring-punch hole, like a real bound flashcard */
+  .punch-hole{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width:26px; height:26px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff, #d8d4e8 70%);
+    box-shadow:inset 0 2px 4px rgba(0,0,0,0.25);
+    z-index:3;
+  }
+
+  .cover .big-q{
+    font-family:'Baloo 2',sans-serif; font-weight:800;
+    font-size:5rem; color:rgba(255,255,255,0.92);
+    text-shadow:0 4px 0 rgba(0,0,0,0.15);
+    margin-top:0.5rem;
+  }
+  .cover .habitat-hint{
+    font-size:2.2rem; opacity:0.5; margin-bottom:-0.4rem;
+  }
+  .cover .tap-text{
+    position:absolute; bottom:20px; left:0; right:0;
+    text-align:center; color:#fff; font-weight:700; font-size:0.95rem;
+    padding:0 1rem;
+  }
+
+  .reveal .habitat-badge{
+    position:absolute; top:14px; right:14px;
+    background:rgba(255,255,255,0.85);
+    border-radius:999px; padding:0.25rem 0.7rem;
+    font-size:0.78rem; font-weight:700; color:var(--ink);
+    display:flex; align-items:center; gap:0.3rem;
+    z-index:2;
+  }
+  .reveal .animal-showcase{
+    font-size:5.4rem;
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,0.25));
+    margin-top:1.6rem;
+  }
+  .reveal .info-panel{
+    width:88%;
+    background:var(--card-stock);
+    border-radius:var(--radius-md);
+    padding:0.8rem 0.9rem 0.9rem;
+    margin-top:0.7rem;
+    text-align:center;
+    box-shadow:0 6px 16px rgba(43,33,64,0.18);
+  }
+  .reveal .animal-name{
+    font-family:'Baloo 2',sans-serif; font-weight:700; font-size:1.35rem;
+    margin:0 0 0.25rem;
+  }
+  .reveal .animal-fact{
+    font-size:0.85rem; color:var(--ink-soft); margin:0 0 0.55rem; line-height:1.3;
+  }
+  .reveal .fact-row{
+    display:flex; align-items:center; justify-content:center; gap:0.5rem;
+  }
+  .hear-btn{
+    display:inline-flex; align-items:center; gap:0.35rem;
+    background:var(--accent-sky); color:#fff; border:none;
+    font-family:'Quicksand',sans-serif; font-weight:700; font-size:0.82rem;
+    padding:0.4rem 0.75rem; border-radius:999px; cursor:pointer;
+  }
+  .hear-btn:hover{ filter:brightness(1.08); }
+  .sound-sticker{
+    background:var(--accent-sun); color:#fff; font-weight:700;
+    font-size:0.78rem; padding:0.35rem 0.6rem; border-radius:999px;
+    transform:rotate(-3deg);
+  }
+  .quiz-prompt{
+    font-family:'Baloo 2',sans-serif; font-weight:700; font-size:1.15rem;
+    color:var(--ink);
+  }
+
+  /* nav arrows (learn mode) */
+  .nav-row{
+    display:flex; align-items:center; justify-content:center; gap:1.6rem;
+    margin-bottom:0.5rem;
+  }
+  .nav-btn{
+    width:52px; height:52px; border-radius:50%;
+    border:none; background:rgba(255,255,255,0.8);
+    font-size:1.4rem; color:var(--ink); cursor:pointer;
+    box-shadow:0 4px 10px rgba(43,33,64,0.18);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nav-btn:hover{ background:#fff; }
+  .nav-btn:focus-visible{ outline:3px solid var(--accent-sky); outline-offset:2px; }
+  .nav-btn:disabled{ opacity:0.35; cursor:default; }
+
+  /* progress trail */
+  .progress-trail{
+    display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:center;
+    margin:0.3rem 0 0.7rem; max-width:340px;
+  }
+  .trail-dot{ font-size:1.1rem; opacity:0.28; transition:opacity 0.2s, transform 0.2s; }
+  .trail-dot.done{ opacity:1; transform:scale(1.1); }
+  .trail-dot.current{ opacity:1; transform:scale(1.3); }
+
+  /* quiz options */
+  .quiz-options{
+    width:100%; max-width:340px;
+    display:flex; flex-direction:column; gap:0.6rem;
+    margin-top:0.2rem;
+  }
+  .option-btn{
+    font-family:'Quicksand',sans-serif; font-weight:700; font-size:1.05rem;
+    padding:0.85rem 1rem; border-radius:16px;
+    border:3px solid rgba(43,33,64,0.12);
+    background:#fff; color:var(--ink); cursor:pointer;
+    transition:transform 0.15s ease, border-color 0.2s, background 0.2s;
+    text-align:left;
+  }
+  .option-btn:hover:not(:disabled){ transform:translateY(-2px); border-color:var(--accent-sky); }
+  .option-btn:focus-visible{ outline:3px solid var(--accent-sky); outline-offset:2px; }
+  .option-btn.correct{ background:var(--accent-grass); color:#fff; border-color:var(--accent-grass); }
+  .option-btn.incorrect{ background:var(--accent-coral); color:#fff; border-color:var(--accent-coral); animation:shake 0.4s ease; }
+  .option-btn:disabled{ cursor:default; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-6px); }
+    75%{ transform:translateX(6px); }
+  }
+
+  .feedback-banner{
+    margin-top:0.7rem; text-align:center; font-weight:700;
+    font-family:'Baloo 2',sans-serif; font-size:1.05rem;
+    min-height:1.6rem;
+  }
+  .feedback-banner.correct{ color:var(--accent-grass); }
+  .feedback-banner.incorrect{ color:var(--accent-coral); }
+
+  .next-btn{
+    margin-top:0.6rem;
+    font-family:'Baloo 2',sans-serif; font-weight:700; font-size:1rem;
+    background:linear-gradient(135deg,var(--accent-sky),var(--accent-grass));
+    color:#fff; border:none; border-radius:999px;
+    padding:0.65rem 1.6rem; cursor:pointer;
+    box-shadow:0 6px 14px rgba(43,33,64,0.2);
+  }
+  .next-btn:hover{ filter:brightness(1.06); }
+
+  footer.controls{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; max-width:340px; margin-top:0.9rem;
+  }
+  .score-badge{
+    font-family:'Baloo 2',sans-serif; font-weight:700; font-size:0.95rem;
+    background:rgba(255,255,255,0.75); border-radius:999px; padding:0.35rem 0.8rem;
+  }
+  .restart-btn, .mute-btn{
+    background:rgba(255,255,255,0.75); border:none; border-radius:999px;
+    padding:0.4rem 0.8rem; font-weight:700; font-size:0.85rem; color:var(--ink);
+    cursor:pointer; font-family:'Quicksand',sans-serif;
+  }
+  .restart-btn:hover, .mute-btn:hover{ background:#fff; }
+
+  /* quiz summary */
+  .summary{
+    width:100%; max-width:340px; text-align:center;
+    background:rgba(255,255,255,0.9); border-radius:var(--radius-lg);
+    padding:1.6rem 1.3rem; box-shadow:var(--shadow-card);
+    animation:popIn 0.4s cubic-bezier(.4,1.6,.4,1);
+  }
+  @keyframes popIn{
+    from{ opacity:0; transform:scale(0.85); }
+    to{ opacity:1; transform:scale(1); }
+  }
+  .summary h2{ font-family:'Baloo 2',sans-serif; margin-top:0; }
+  .summary .stars{ font-size:2.2rem; margin:0.6rem 0; }
+
+  /* confetti */
+  .confetti-layer{
+    position:fixed; inset:0; pointer-events:none; z-index:20; overflow:hidden;
+  }
+  .confetto{
+    position:absolute; top:-20px; border-radius:2px;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{
+    to{ transform:translateY(105vh) rotate(360deg); opacity:0.9; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .card.idle-invite, .mascot-bubble span.paw, .cloud, .cover .habitat-hint{ animation:none !important; }
+    .card{ transition:transform 0.01s linear; }
+    .confetto{ animation:none; display:none; }
+  }
+
+  @media (max-width:380px){
+    .card-scene{ max-width:280px; }
+    .reveal .animal-showcase{ font-size:4.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sky-deco" id="skyDeco" aria-hidden="true"></div>
+
+<div class="app">
+  <header>
+    <h1><span class="title-emoji">🐾</span> Wild Friends <span class="title-emoji">🐾</span></h1>
+    <div class="mascot-bubble"><span class="paw">🐾</span> <span id="mascotText">Tap the card to meet a new friend!</span></div>
+  </header>
+
+  <div class="mode-toggle" id="modeToggle" data-mode="learn">
+    <button id="learnTabBtn" class="active" type="button">Learn</button>
+    <button id="quizTabBtn" type="button">Quiz</button>
+    <div class="slider"></div>
+  </div>
+
+  <div class="stage" id="stage"></div>
+</div>
+
+<div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+
+<script>
+(function(){
+
+  const animals = [
+    { given:"Leo", name:"Lion", habitat:"savanna", emoji:"🦁", fact:"I'm the king of the savanna! I love to nap in the sun and give a big roar.", sound:"Roar!" },
+    { given:"Ellie", name:"Elephant", habitat:"savanna", emoji:"🐘", fact:"I use my long trunk like a hand, to drink water and grab yummy leaves.", sound:"Toot!" },
+    { given:"Gigi", name:"Giraffe", habitat:"savanna", emoji:"🦒", fact:"I'm the tallest animal around! My tongue is blue and helps me reach leaves.", sound:"Hmmm" },
+    { given:"Ziggy", name:"Zebra", habitat:"savanna", emoji:"🦓", fact:"My stripes are like a fingerprint. No other zebra has the same pattern!", sound:"Neigh!" },
+    { given:"Tara", name:"Tiger", habitat:"jungle", emoji:"🐯", fact:"My orange stripes help me hide in the tall grass when I'm exploring.", sound:"Growl!" },
+    { given:"Milo", name:"Monkey", habitat:"jungle", emoji:"🐒", fact:"I love swinging from tree to tree using my hands, feet, and tail!", sound:"Ooh ooh ah ah!" },
+    { given:"Pippa", name:"Panda", habitat:"jungle", emoji:"🐼", fact:"I munch on bamboo all day long, sometimes for twelve hours straight!", sound:"Munch munch" },
+    { given:"Freddy", name:"Frog", habitat:"jungle", emoji:"🐸", fact:"I have super strong legs for jumping, and I sing at night by the pond.", sound:"Ribbit!" },
+    { given:"Percy", name:"Penguin", habitat:"arctic", emoji:"🐧", fact:"I can't fly in the sky, but I zoom like a rocket underwater!", sound:"Honk!" },
+    { given:"Bella", name:"Polar Bear", habitat:"arctic", emoji:"🐻‍❄️", fact:"My thick white fur keeps me warm, even when it's freezing outside.", sound:"Grr!" },
+    { given:"Ollie", name:"Owl", habitat:"forest", emoji:"🦉", fact:"I can turn my head almost all the way around to see behind me!", sound:"Hoot!" },
+    { given:"Finn", name:"Fox", habitat:"forest", emoji:"🦊", fact:"I have a big bushy tail that helps me stay warm and keep my balance.", sound:"Ring-ding-ding!" },
+    { given:"Daisy", name:"Dolphin", habitat:"ocean", emoji:"🐬", fact:"I'm super smart, and I love to jump high out of the water!", sound:"Click click!" },
+    { given:"Toby", name:"Turtle", habitat:"ocean", emoji:"🐢", fact:"I carry my very own home on my back everywhere I go.", sound:"Splash!" },
+    { given:"Kiki", name:"Kangaroo", habitat:"outback", emoji:"🦘", fact:"I carry my baby joey in my pouch, and I can hop really fast!", sound:"Thump thump!" },
+    { given:"Kobi", name:"Koala", habitat:"outback", emoji:"🐨", fact:"I sleep up to twenty hours a day, snuggled in a eucalyptus tree.", sound:"Snore..." }
+  ];
+
+  const habitats = {
+    savanna:{ label:"Savanna", icon:"🌾", bg:"linear-gradient(160deg,#F6C177,#E8973B)" },
+    jungle:{ label:"Jungle", icon:"🌴", bg:"linear-gradient(160deg,#7FD79A,#2E9E56)" },
+    arctic:{ label:"Arctic", icon:"❄️", bg:"linear-gradient(160deg,#DFF6FB,#9FE0EE)" },
+    forest:{ label:"Forest", icon:"🌲", bg:"linear-gradient(160deg,#B7CE8E,#6B8E4E)" },
+    ocean:{ label:"Ocean", icon:"🌊", bg:"linear-gradient(160deg,#7FD8E8,#2E86AB)" },
+    outback:{ label:"Outback", icon:"🏜️", bg:"linear-gradient(160deg,#F2A879,#D96C3F)" }
+  };
+
+  const stage = document.getElementById('stage');
+  const mascotText = document.getElementById('mascotText');
+  const modeToggle = document.getElementById('modeToggle');
+  const learnTabBtn = document.getElementById('learnTabBtn');
+  const quizTabBtn = document.getElementById('quizTabBtn');
+  const confettiLayer = document.getElementById('confettiLayer');
+
+  let mode = 'learn';
+  let speechOn = true;
+
+  // ---------- Learn mode state ----------
+  let learnOrder = shuffle(animals.map((_, i) => i));
+  let learnPos = 0;
+  let flipped = false;
+
+  // ---------- Quiz mode state ----------
+  const QUIZ_LENGTH = 8;
+  let quizOrder = [];
+  let quizPos = 0;
+  let quizScore = 0;
+  let quizAnswered = false;
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function speak(text){
+    if(!speechOn) return;
+    if(!('speechSynthesis' in window)) return;
+    try{
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.92;
+      u.pitch = 1.05;
+      window.speechSynthesis.speak(u);
+    }catch(e){ /* speech not available */ }
+  }
+
+  function setMascot(text){ mascotText.textContent = text; }
+
+  // ---------- Rendering ----------
+  function render(){
+    if(mode === 'learn') renderLearn();
+    else renderQuiz();
+  }
+
+  function renderLearn(){
+    modeToggle.dataset.mode = 'learn';
+    learnTabBtn.classList.add('active');
+    quizTabBtn.classList.remove('active');
+
+    const idx = learnOrder[learnPos];
+    const animal = animals[idx];
+    const hab = habitats[animal.habitat];
+
+    setMascot(flipped ? "Tap again to say bye, or use the arrows to meet someone new!" : "Tap the card to meet a new friend!");
+
+    stage.innerHTML = `
+      <div class="card-scene">
+        <button class="card ${flipped ? 'flipped' : ''} ${flipped ? '' : 'idle-invite'}" id="flipCard"
+          aria-label="${flipped ? 'Hide animal' : 'Flip card to reveal animal'}">
+          <div class="face cover" style="background:${desaturate(hab.bg)}">
+            <div class="punch-hole"></div>
+            <div class="habitat-hint">${hab.icon}</div>
+            <div class="big-q">?</div>
+            <div class="tap-text">Tap to meet a new friend!</div>
+          </div>
+          <div class="face reveal" style="background:${hab.bg}">
+            <div class="punch-hole"></div>
+            <div class="habitat-badge">${hab.icon} ${hab.label}</div>
+            <div class="animal-showcase">${animal.emoji}</div>
+            <div class="info-panel">
+              <p class="animal-name">${animal.given} the ${animal.name}</p>
+              <p class="animal-fact">${animal.fact}</p>
+              <div class="fact-row">
+                <button class="hear-btn" id="hearBtn" type="button">🔊 Hear it</button>
+                <span class="sound-sticker">${animal.sound}</span>
+              </div>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <div class="nav-row">
+        <button class="nav-btn" id="prevBtn" ${learnPos === 0 ? 'disabled' : ''} aria-label="Previous animal">◀</button>
+        <button class="nav-btn" id="nextBtn" aria-label="Next animal">▶</button>
+      </div>
+
+      <div class="progress-trail" id="progressTrail"></div>
+
+      <footer class="controls">
+        <span class="score-badge">🐾 ${learnPos + 1} / ${animals.length}</span>
+        <button class="mute-btn" id="muteBtn" type="button">${speechOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
+        <button class="restart-btn" id="shuffleBtn" type="button">🔀 Shuffle</button>
+      </footer>
+    `;
+
+    renderTrail('progressTrail', animals.length, learnPos, learnPos);
+
+    document.getElementById('flipCard').addEventListener('click', () => {
+      flipped = !flipped;
+      if(flipped) speak(`${animal.given} the ${animal.name} says ${animal.sound}`);
+      renderLearn();
+    });
+    document.getElementById('hearBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      speak(`${animal.given} the ${animal.name} says ${animal.sound}`);
+    });
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if(learnPos > 0){ learnPos--; flipped = false; renderLearn(); }
+    });
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      learnPos = (learnPos + 1) % animals.length;
+      flipped = false;
+      renderLearn();
+    });
+    document.getElementById('muteBtn').addEventListener('click', () => {
+      speechOn = !speechOn;
+      renderLearn();
+    });
+    document.getElementById('shuffleBtn').addEventListener('click', () => {
+      learnOrder = shuffle(animals.map((_, i) => i));
+      learnPos = 0; flipped = false;
+      renderLearn();
+    });
+  }
+
+  function desaturate(gradient){
+    // simple mystery-side treatment: dim the habitat gradient toward a muted plum
+    return `linear-gradient(160deg, rgba(138,127,190,0.55), rgba(78,69,119,0.85)), ${gradient}`;
+  }
+
+  function renderTrail(containerId, total, doneUpTo, currentIdx){
+    const el = document.getElementById(containerId);
+    let html = '';
+    for(let i = 0; i < total; i++){
+      let cls = 'trail-dot';
+      if(i === currentIdx) cls += ' current';
+      else if(i < doneUpTo) cls += ' done';
+      html += `<span class="${cls}">🐾</span>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // ---------- Quiz ----------
+  function startQuiz(){
+    quizOrder = shuffle(animals.map((_, i) => i)).slice(0, Math.min(QUIZ_LENGTH, animals.length));
+    quizPos = 0;
+    quizScore = 0;
+    quizAnswered = false;
+    renderQuiz();
+  }
+
+  function renderQuiz(){
+    modeToggle.dataset.mode = 'quiz';
+    quizTabBtn.classList.add('active');
+    learnTabBtn.classList.remove('active');
+
+    if(quizOrder.length === 0){ startQuiz(); return; }
+
+    if(quizPos >= quizOrder.length){
+      renderQuizSummary();
+      return;
+    }
+
+    const idx = quizOrder[quizPos];
+    const animal = animals[idx];
+    const hab = habitats[animal.habitat];
+
+    setMascot("Pick the right name for your new friend!");
+
+    // build 3 options
+    const wrongPool = animals
+      .map((a, i) => i)
+      .filter(i => i !== idx);
+    const wrongs = shuffle(wrongPool).slice(0, 2).map(i => animals[i].name);
+    const options = shuffle([animal.name, ...wrongs]);
+
+    stage.innerHTML = `
+      <div class="card-scene">
+        <div class="card flipped">
+          <div class="face reveal" style="background:${hab.bg}">
+            <div class="punch-hole"></div>
+            <div class="habitat-badge">${hab.icon} ${hab.label}</div>
+            <div class="animal-showcase">${animal.emoji}</div>
+            <div class="info-panel">
+              <p class="quiz-prompt">Who am I? 🤔</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="progress-trail" id="progressTrail"></div>
+
+      <div class="quiz-options" id="quizOptions">
+        ${options.map((opt, i) => `<button class="option-btn" data-opt="${opt}" type="button">${opt}</button>`).join('')}
+      </div>
+
+      <div class="feedback-banner" id="feedbackBanner"></div>
+      <div id="nextArea" style="min-height:44px; display:flex; justify-content:center;"></div>
+
+      <footer class="controls">
+        <span class="score-badge">⭐ ${quizScore} pts</span>
+        <button class="mute-btn" id="muteBtn" type="button">${speechOn ? '🔊 Sound on' : '🔇 Sound off'}</button>
+        <button class="restart-btn" id="restartQuizBtn" type="button">↺ Restart</button>
+      </footer>
+    `;
+
+    renderTrail('progressTrail', quizOrder.length, quizPos, quizPos);
+
+    document.getElementById('muteBtn').addEventListener('click', () => { speechOn = !speechOn; renderQuiz(); });
+    document.getElementById('restartQuizBtn').addEventListener('click', startQuiz);
+
+    document.querySelectorAll('.option-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleAnswer(btn, animal, options));
+    });
+  }
+
+  function handleAnswer(btn, animal, options){
+    if(quizAnswered) return;
+    quizAnswered = true;
+
+    const chosen = btn.dataset.opt;
+    const isCorrect = chosen === animal.name;
+    const buttons = document.querySelectorAll('.option-btn');
+    buttons.forEach(b => {
+      b.disabled = true;
+      if(b.dataset.opt === animal.name) b.classList.add('correct');
+      else if(b === btn && !isCorrect) b.classList.add('incorrect');
+    });
+
+    const banner = document.getElementById('feedbackBanner');
+    if(isCorrect){
+      quizScore++;
+      banner.textContent = "Yes! You know your animals! 🎉";
+      banner.className = 'feedback-banner correct';
+      speak(`Yes! That's ${animal.given} the ${animal.name}!`);
+      burstConfetti();
+    } else {
+      banner.textContent = `So close! This is ${animal.given} the ${animal.name}.`;
+      banner.className = 'feedback-banner incorrect';
+      speak(`This is ${animal.given} the ${animal.name}. Let's try the next one!`);
+    }
+
+    const nextArea = document.getElementById('nextArea');
+    nextArea.innerHTML = `<button class="next-btn" id="nextQBtn" type="button">Next friend →</button>`;
+    document.getElementById('nextQBtn').addEventListener('click', () => {
+      quizPos++;
+      quizAnswered = false;
+      renderQuiz();
+    });
+  }
+
+  function renderQuizSummary(){
+    const total = quizOrder.length;
+    const pct = quizScore / total;
+    let stars = '⭐';
+    if(pct >= 0.9) stars = '⭐⭐⭐';
+    else if(pct >= 0.6) stars = '⭐⭐';
+
+    setMascot("What an adventure! Want to play again?");
+
+    stage.innerHTML = `
+      <div class="summary">
+        <h2>You did it, explorer! 🎉</h2>
+        <div class="stars">${stars}</div>
+        <p>You got <strong>${quizScore} out of ${total}</strong> right!</p>
+        <button class="next-btn" id="playAgainBtn" type="button">Play again</button>
+      </div>
+    `;
+    document.getElementById('playAgainBtn').addEventListener('click', startQuiz);
+  }
+
+  function burstConfetti(){
+    const colors = ['#FF6B6B','#FFB100','#43B36B','#2F9BD6','#8A7FBE'];
+    const count = 26;
+    for(let i = 0; i < count; i++){
+      const el = document.createElement('div');
+      el.className = 'confetto';
+      const size = 6 + Math.random() * 6;
+      el.style.width = size + 'px';
+      el.style.height = size * 0.6 + 'px';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      const duration = 1.4 + Math.random() * 1.2;
+      el.style.animationDuration = duration + 's';
+      confettiLayer.appendChild(el);
+      setTimeout(() => el.remove(), duration * 1000 + 100);
+    }
+  }
+
+  // ---------- Ambient clouds ----------
+  function initClouds(){
+    const deco = document.getElementById('skyDeco');
+    const symbols = ['☁️','☁️','🐾'];
+    for(let i = 0; i < 5; i++){
+      const el = document.createElement('div');
+      el.className = 'cloud';
+      el.textContent = symbols[i % symbols.length];
+      el.style.top = (8 + Math.random() * 70) + '%';
+      el.style.animationDuration = (35 + Math.random() * 30) + 's';
+      el.style.animationDelay = (-Math.random() * 40) + 's';
+      el.style.fontSize = (1.6 + Math.random() * 2) + 'rem';
+      deco.appendChild(el);
+    }
+  }
+
+  // ---------- Mode tab wiring ----------
+  learnTabBtn.addEventListener('click', () => {
+    if(mode === 'learn') return;
+    mode = 'learn';
+    flipped = false;
+    renderLearn();
+  });
+  quizTabBtn.addEventListener('click', () => {
+    if(mode === 'quiz') return;
+    mode = 'quiz';
+    startQuiz();
+  });
+
+  // keyboard nav for learn mode
+  document.addEventListener('keydown', (e) => {
+    if(mode !== 'learn') return;
+    if(e.key === 'ArrowRight'){ document.getElementById('nextBtn')?.click(); }
+    if(e.key === 'ArrowLeft'){ document.getElementById('prevBtn')?.click(); }
+  });
+
+  initClouds();
+  renderLearn();
+})();
+</script>
+</body>
+</html>
